@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+import requests
 
 app = Flask(__name__)
 
@@ -14,15 +15,27 @@ def find_file_size():
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
     
-    # 3. Calculate file size safely without loading it all into memory
-    file.seek(0, 2)  # Move to the end of the file
-    file_size_bytes = file.tell()  # Get the current position (size in bytes)
-    file.seek(0)  # Reset the cursor back to the beginning
+    # 3. Calculate file size 
+    file.seek(0, 2)
+    file_size_bytes = file.tell()
+    file.seek(0)
+    
+    # 4. Fetch data from yesno.wtf
+    yesno_result = {}
+    try:
+        # A short timeout prevents your app from hanging if their API is down
+        response = requests.get('https://yesno.wtf/api', timeout=5)
+        response.raise_for_status()
+        yesno_result = response.json()
+    except requests.RequestException as e:
+        # Gracefully handle the case where the external API fails
+        yesno_result = {"error": f"Could not reach yesno.wtf: {str(e)}"}
 
     return jsonify({
         "message": "File received successfully",
         "filename": file.filename,
-        "file_size_bytes": file_size_bytes
+        "file_size_bytes": file_size_bytes,
+        "yesno": yesno_result
     }), 200
 
 if __name__ == '__main__':
